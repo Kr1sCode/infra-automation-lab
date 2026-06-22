@@ -2,13 +2,13 @@
 
 A curated set of Ansible playbooks for routine infrastructure operations in a mixed lab environment based on Proxmox, Linux and Windows Server.
 
-This repository is a public portfolio project that presents selected automation examples used for patching, snapshot management and health checks.  
+This repository is a public portfolio project that presents selected automation examples used for patching, snapshot management and health checks.
+
 Sensitive values, inventory details and runtime credentials are intentionally excluded from the repository.
 
 ## Scope
 
 Included playbooks cover:
-
 - Debian / Ubuntu patching with reboot logic
 - RedHat / Fedora patching with reboot detection
 - Windows Server update automation
