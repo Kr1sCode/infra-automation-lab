@@ -1,0 +1,43 @@
+---
+- name: Aktualizuj system Debian/Ubuntu i uruchom ponownie, jeśli to konieczne
+  hosts: all
+  become: yes
+  tasks:
+    - name: Określ dystrybucję systemu operacyjnego
+      set_fact:
+        os_family: "{{ ansible_os_family }}"
+
+    - name: Aktualizuj systemy Debian/Ubuntu
+      apt:
+        update_cache: yes
+        upgrade: dist
+      when: os_family == "Debian"
+
+    - name: Pobierz aktualną wersję jądra
+      command: uname -r
+      register: current_kernel
+      changed_when: false
+
+    - name: Pobierz zainstalowane wersje jądra
+      shell: dpkg --list | grep 'linux-image'
+      register: kernel_info
+      changed_when: false
+      failed_when: kernel_info.rc > 1  # Traktuj brak wyników jako sukces, ale zgłaszaj błędy dla innych problemów.
+
+    - name: Ustaw wersje zainstalowanych jąder jako fakt
+      set_fact:
+        installed_kernels: "{{ kernel_info.stdout_lines | map('regex_replace', '^ii\\s*(.*?)\\s.*$', '\\1') | list }}"
+      when: kernel_info.stdout != ""  # Ustaw fakt tylko wtedy, gdy są wyniki.
+
+    - name: Ustaw domyślną wartość dla installed_kernels
+      set_fact:
+        installed_kernels: []  # Ustaw pustą listę, jeśli nie ma zainstalowanych jąder.
+      when: kernel_info.stdout == ""
+
+    - name: Sprawdź, czy wymagane jest ponowne uruchomienie
+      set_fact:
+        reboot_required: "{{ installed_kernels | select('search', current_kernel.stdout) | list | length == 0 }}"
+
+    - name: Uruchom ponownie system, jeśli to wymagane
+      reboot:
+      when: reboot_required | bool

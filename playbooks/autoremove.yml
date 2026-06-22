@@ -1,0 +1,45 @@
+---
+- name: Cleanup old snapshots on Proxmox
+  hosts: proxmox_servers
+  gather_facts: no
+  vars:
+    days_old: 2  # Snapshoty starsze niż 30 dni zostaną usunięte
+
+  tasks:
+    - name: Get list of VMs
+      ansible.builtin.command:
+        cmd: "qm list"
+      register: vm_list
+      changed_when: false
+
+    - name: Extract VM IDs
+      set_fact:
+        vm_ids: "{{ vm_list.stdout_lines[1:] | map('regex_search', '^\\s*(\\d+)') | map('first') | list }}"
+
+    - name: Get list of LXC containers
+      ansible.builtin.command:
+        cmd: "pct list"
+      register: lxc_list
+      changed_when: false
+
+    - name: Extract LXC IDs
+      set_fact:
+        lxc_ids: "{{ lxc_list.stdout_lines[1:] | map('regex_search', '^\\s*(\\d+)') | map('first') | list }}"
+
+    - name: Cleanup old snapshots for VMs
+      ansible.builtin.shell: |
+        for vm in {{ vm_ids }}; do
+          qm listsnapshot $vm --verbose | awk '/name:/ {snap=$2} /created:/ {date=$2; "date -d " date " +%s" | getline snap_date; "date +%s" | getline now; if ((now - snap_date)/(60*60*24) > {{ days_old }}) print snap}' | while read snap; do
+            qm delsnapshot $vm $snap
+          done
+        done
+      when: vm_ids | length > 0
+
+    - name: Cleanup old snapshots for LXC containers
+      ansible.builtin.shell: |
+        for lxc in {{ lxc_ids }}; do
+          pct listsnapshot $lxc --verbose | awk '/name:/ {snap=$2} /created:/ {date=$2; "date -d " date " +%s" | getline snap_date; "date +%s" | getline now; if ((now - snap_date)/(60*60*24) > {{ days_old }}) print snap}' | while read snap; do
+            pct delsnapshot $lxc $snap
+          done
+        done
+      when: lxc_ids | length > 0

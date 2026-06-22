@@ -1,0 +1,32 @@
+---
+- name: Update RedHat/Fedora system and reboot if necessary
+  hosts: all
+  become: yes
+  tasks:
+    - name: Determine OS distribution
+      set_fact:
+        os_family: "{{ ansible_os_family }}"
+
+    - name: Update RedHat/Fedora systems
+      yum:
+        name: '*'
+        state: latest
+      when: os_family == "RedHat"
+
+    - name: Check installed kernel versions
+      command: rpm -q kernel
+      register: kernel_info
+      changed_when: false
+
+    - name: Get current kernel version
+      command: uname -r
+      register: current_kernel
+      changed_when: false
+
+    - name: Check if a reboot is required
+      set_fact:
+        reboot_required: "{{ kernel_info.stdout_lines | select('match', '^kernel-') | select('search', current_kernel.stdout) | list | length == 0 }}"
+
+    - name: Reboot the system if required
+      reboot:
+      when: reboot_required | default(false)  # Default to false if not set

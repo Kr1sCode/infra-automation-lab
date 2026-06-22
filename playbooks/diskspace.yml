@@ -1,0 +1,72 @@
+---
+- name: Check disk space and system health on Proxmox servers
+  hosts: proxmox_servers
+  gather_facts: no
+
+  tasks:
+    - name: Get disk usage information
+      shell: df -Ph | grep -v '/mnt/pve/Backup' | grep -v '/mnt/pve/SMB'
+      register: disk_usage
+      failed_when: false
+
+    - name: Get CPU usage information
+      command: "bash -c 'top -bn1 | grep \"Cpu(s)\" | sed \"s/.*, *\\([0-9.]*\\)%* id.*/\\1/\" | awk \"{print 100 - \\$1}\"'"
+      register: cpu_usage
+      ignore_errors: yes
+
+    - name: Get RAM usage information
+      command: "bash -c 'free -h | awk \"/Mem/{printf(\\\"Zajęte: %s z %s (%.2f%%)\\\", \\$3, \\$2, (\\$3/\\$2)*100)}\"'"
+      register: ram_usage
+      ignore_errors: yes
+
+    - name: Filter valid disk usage lines
+      set_fact:
+        valid_disk_info: "{{ disk_usage.stdout_lines[1:] | select('search', '^/dev/|^storage') | map('split') | list }}"
+      when: disk_usage.rc == 0
+
+    - name: Ensure valid_disk_info is always defined
+      set_fact:
+        valid_disk_info: []
+      when: valid_disk_info is not defined
+
+    - name: Create health summary in HTML format
+      set_fact:
+        health_summary: >
+          <html>
+            <body>
+              <h2>Cześć Krzysztof, przesyłam poranny Health Check.</h2>
+              <h3>Zużycie CPU</h3>
+              <p>CPU: {{ cpu_usage.stdout | default('Brak danych') }}%</p>
+              <h3>Zużycie RAM</h3>
+              <p>RAM: {{ ram_usage.stdout | default('Brak danych') }}</p>
+              <h3>Podsumowanie wykorzystania miejsca na dyskach</h3>
+              <ul>
+                {% if valid_disk_info | length > 0 %}
+                  {% for item in valid_disk_info %}
+                    <li>{{ item[0] }}: {{ item[4] }} zajęte ({{ item[2] }} total)</li>
+                  {% endfor %}
+                {% else %}
+                  <li>Brak danych o wykorzystaniu miejsca na dyskach.</li>
+                {% endif %}
+              </ul>
+              {% if disk_usage.stderr %}
+                <h3>Uwaga</h3>
+                <ul>
+                  {% for error in disk_usage.stderr_lines %}
+                    <li>{{ error }} - Dysk jest niedostępny</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+            </body>
+          </html>
+
+    - name: Send email with system health summary in HTML
+      mail:
+        host: "{{ smtp_server | default('smtp.example.com') }}"
+        port: "{{ smtp_port | default(587) }}"
+        username: "{{ smtp_user | default(omit) }}"
+        password: "{{ smtp_password | default(omit) }}"
+        to: "{{ recipient_email | default('twoj@email.pl') }}"
+        subject: "Podsumowanie Health Check"
+        body: "{{ health_summary }}"
+        subtype: html

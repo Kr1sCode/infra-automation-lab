@@ -1,0 +1,4 @@
+---
+timezone: Europe/Warsaw
+maintenance_window: "02:00-04:00"
+snapshot_retention_days: 2

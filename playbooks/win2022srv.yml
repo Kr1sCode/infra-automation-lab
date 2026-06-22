@@ -1,0 +1,16 @@
+---
+- name: Windows rolling update
+  hosts: all
+  tasks:
+    - name: Instalacja aktualizacji
+      ansible.windows.win_updates:
+        category_names:
+          - SecurityUpdates
+          - CriticalUpdates
+          - Definition Updates
+        reboot: yes
+      register: update_result
+
+    - name: Wyświetlanie wyników aktualizacji
+      debug:
+        var: update_result

@@ -1,0 +1,53 @@
+---
+- name: Create snapshots for all VMs and LXC containers on Proxmox
+  hosts: proxmox
+  gather_facts: false
+  become: true
+
+  vars:
+    snapshot_name: "snapshot_{{ lookup('pipe', 'date +%Y-%m-%d') }}"
+
+  tasks:
+    - name: Retrieve VM IDs on Proxmox
+      shell: "qm list | awk 'NR>1 {print $1}'"
+      register: vm_list
+      changed_when: false
+      connection: ssh
+      timeout: 30
+
+    - name: Retrieve LXC container IDs on Proxmox
+      shell: "pct list | awk 'NR>1 {print $1}'"
+      register: lxc_list
+      changed_when: false
+      connection: ssh
+      timeout: 30
+
+    - name: Debug VM list output
+      debug:
+        var: vm_list.stdout
+
+    - name: Debug LXC list output
+      debug:
+        var: lxc_list.stdout
+
+    - name: Create snapshot for each VM
+      command: "qm snapshot {{ item }} {{ snapshot_name }} --description 'Automated snapshot from Ansible on {{ lookup('pipe', 'date +%Y-%m-%d') }}'"
+      with_items: "{{ vm_list.stdout_lines }}"
+      ignore_errors: true
+      register: vm_snapshot_results
+
+    - name: Create snapshot for each LXC container
+      command: "pct snapshot {{ item }} {{ snapshot_name }} --description 'Automated snapshot from Ansible on {{ lookup('pipe', 'date +%Y-%m-%d') }}'"
+      with_items: "{{ lxc_list.stdout_lines }}"
+      ignore_errors: true
+      register: lxc_snapshot_results
+
+    - name: Display VM snapshot results
+      debug:
+        msg: "Snapshot created for VM ID: {{ item.item }} - Result: {{ item.stdout }}"
+      with_items: "{{ vm_snapshot_results.results }}"
+
+    - name: Display LXC snapshot results
+      debug:
+        msg: "Snapshot created for LXC ID: {{ item.item }} - Result: {{ item.stdout }}"
+      with_items: "{{ lxc_snapshot_results.results }}"

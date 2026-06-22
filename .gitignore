@@ -1,0 +1,16 @@
+*.retry
+*.log
+*.vault
+.env
+.vscode/
+.idea/
+.semaphore/
+inventory/*.ini
+!inventory/example.ini
+group_vars/*.yml
+!group_vars/all.example.yml
+host_vars/
+*.pem
+*.key
+*.crt
+*.p12
