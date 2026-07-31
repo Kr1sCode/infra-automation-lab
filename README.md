@@ -1,5 +1,9 @@
 # Infrastructure Automation Lab
 
+[![GitHub stars](https://img.shields.io/github/stars/Kr1sCode/infra-automation-lab?style=flat)](https://github.com/Kr1sCode/infra-automation-lab/stargazers)
+[![License](https://img.shields.io/badge/license-see--LICENSE-blue)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/Kr1sCode/infra-automation-lab)](https://github.com/Kr1sCode/infra-automation-lab/commits/main)
+
 A curated set of Ansible playbooks for routine infrastructure operations in a mixed lab environment based on Proxmox, Linux and Windows Server.
 
 This repository is a public portfolio project that presents selected automation examples used for patching, snapshot management and health checks.
